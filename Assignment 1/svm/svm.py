@@ -73,8 +73,8 @@ def getData(num_cross_valid):
 		List_of_Tags.append(words[1])
 		List_of_Words.append(words[0].lower())
 
-	List_of_Words.append('st')
-	List_of_Words.append('endt')
+	# List_of_Words.append('st')
+	# List_of_Words.append('endt')
 
 	List_of_Tags.append('st')
 	List_of_Tags.append('endt')
@@ -135,7 +135,7 @@ def train(num_cross_valid, word_vect):
 
 	observations = []
 
-	for i in range(1):
+	for i in range(2):
 		obs = Observations()
 		train_set = []
 		test_set = []
@@ -144,8 +144,8 @@ def train(num_cross_valid, word_vect):
 				train_set = train_set + dataset[j]
 			else:
 				test_set = test_set + dataset[j]
-		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:200], word_vect)
-		_, test_vecs, test_pos = getFeatureData(test_set[0:1000], word_vect, vectorizer, False)
+		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:40], word_vect)
+		_, test_vecs, test_pos = getFeatureData(test_set[0:40], word_vect, vectorizer, False)
 		
 		print("Training started len feature", len(feature_vecs), len(test_vecs))
 		
@@ -201,7 +201,7 @@ def train(num_cross_valid, word_vect):
 		outs = np.array(outs)
 		outs1 = np.array(outs1)
 		print("results")
-		print(outs[0], outs1[0], test_pos)
+		# print(outs[0], outs1[0], test_pos)
 
 		outs_tmp = []
 		for kk in outs:
@@ -213,7 +213,7 @@ def train(num_cross_valid, word_vect):
 					c.append(np.array([0, 1]))
 			outs_tmp.append(np.array(c))
 
-		outs = np.array(outs_tmp)
+		# outs = np.array(outs_tmp)
 
 		out_tags = []
 		out_tags1 = []
@@ -229,10 +229,24 @@ def train(num_cross_valid, word_vect):
 		# print(sum(linear_pred == test_pos), len(test_pos))
 		print(sum(out_tags1 == test_pos), len(test_pos))
 		print(sum(out_tags == test_pos), len(test_pos))
-		accuracy_lin = linear.score(test_vecs, test_pos)
-		print('Accuracy Linear Kernel:', accuracy_lin)
+		
+		# record observation
+		obs.accuracy = (sum(out_tags1 == test_pos) * 100) / len(test_pos)
+		conf = np.zeros((2, 2))
+		for cnt, k in enumerate(tags2):
+			per_tag_pred = np.array([1 if x == k else 0 for x in out_tags1])
+			per_tag_crkt = np.array([1 if x == k else 0 for x in test_pos])
+			obs.per_pos_acc[k] = (sum(per_tag_pred == per_tag_crkt) * 100) / len(test_pos)
+			conf[0][0] += sum(per_tag_crkt * per_tag_pred)
+			conf[0][1] += sum((1 - per_tag_crkt) * per_tag_pred)
+			conf[1][0] += sum(per_tag_crkt * (1 - per_tag_pred))
+			conf[1][1] += sum((1 - per_tag_crkt) * (1 - per_tag_pred))
+		obs.conf_matx = conf / len(tags2)
 
+		observations.append(obs)
 
+		# accuracy_lin = linear.score(test_vecs, test_pos)
+		# print('Accuracy Linear Kernel:', accuracy_lin)
 
 		# print(len(feature_vecs.toarray()[0]), pos_tags[0])
 
@@ -240,6 +254,32 @@ def train(num_cross_valid, word_vect):
 
 
 		#Test accuracy
+	print(observations)
+
+	per_pos = dict()
+	count = dict()
+	for kk in tags:
+		per_pos[kk]=0
+		count[kk]=0
+		for k in observations:
+			if kk in k.per_pos_acc:
+				per_pos[kk]+=k.per_pos_acc[kk]
+				count[kk]+=1
+
+	for tg, vl in per_pos.items():
+		if vl!=0:
+			per_pos[tg] = per_pos[tg]/count[tg]
+	print(per_pos)
+
+	conf_mt = np.zeros((2, 2))
+	cnt=0
+	for i in observations:
+		conf_mt += i.conf_matx
+		cnt+=1
+	conf_mt /= cnt
+
+	print(conf_mt)
+
 
 def cvxopt_train(X, y):
 	C = 2
