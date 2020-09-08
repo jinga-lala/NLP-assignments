@@ -144,8 +144,8 @@ def train(num_cross_valid, word_vect):
 				train_set = train_set + dataset[j]
 			else:
 				test_set = test_set + dataset[j]
-		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[0:1000], word_vect)
-		_, test_vecs, test_pos = getFeatureData(test_set[0:500], word_vect, vectorizer, False)
+		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:200], word_vect)
+		_, test_vecs, test_pos = getFeatureData(test_set[0:1000], word_vect, vectorizer, False)
 		
 		print("Training started len feature", len(feature_vecs), len(test_vecs))
 		
@@ -248,7 +248,7 @@ def cvxopt_train(X, y):
 	X_dash = y * X
 	H = np.dot(X_dash , X_dash.T) * 1.
 
-	#Converting into cvxopt format - as previously
+	#Converting into cvxopt format 
 	P = cvxopt_matrix(H)
 	q = cvxopt_matrix(-np.ones((m, 1)))
 	G = cvxopt_matrix(np.vstack((np.eye(m)*-1,np.eye(m))))
@@ -260,76 +260,10 @@ def cvxopt_train(X, y):
 	sol = cvxopt_solvers.qp(P, q, G, h, A, b)
 	alphas = np.array(sol['x'])
 
-	#==================Computing and printing parameters===============================#
 	w = ((y * alphas).T @ X).reshape(-1,1)
 	S = (alphas > 1e-4).flatten()
 	b = y[S] - np.dot(X[S], w)
 	return w, b
-
-
-def svm_train(x, y):
-	#add bias to sample vectors
-	x = np.c_[x,np.ones(len(x))]
-
-	#initialize weight vector
-	w = np.zeros(len(x[0]))
-	#learning rate 
-	lam = 0.001
-	#array of number for shuffling
-	order = np.arange(0,len(x),1)
-	print(len(order))
-
-	margin_current = 0
-	margin_previous = -10
-
-	pos_support_vectors = 0
-	neg_support_vectors = 0
-
-	not_converged = True
-	t =0 
-	start_time = time.time()
-
-	while(not_converged):
-		margin_previous = margin_current
-		t += 1
-		pos_support_vectors = 0
-		neg_support_vectors = 0
-		
-		eta = 1/(lam*t)
-		fac = (1-(eta*lam))*w
-		random.shuffle(order)
-		for i in order:
-			# print(i, " i")
-			prediction = np.dot(x[i],w)
-			
-			#check for support vectors
-			if (round((prediction),1) == 1):
-				pos_support_vectors += 1
-				#pos support vec found
-			if (round((prediction),1) == -1):
-				neg_support_vectors += 1
-				#neg support vec found
-				
-			#misclassification
-			if (y[i]*prediction) < 1 :
-				w = fac + eta*y[i]*x[i]            
-			#correct classification
-			else:
-				w = fac
-		if(t%200==0):
-			print(t, " t")
-		if(t>6000):
-			break
-		if(t>4000):
-			margin_current = np.linalg.norm(w)
-			# not_converged = False    
-			if((pos_support_vectors > 0) and (neg_support_vectors > 0) and ((margin_current - margin_previous) < 0.01)):
-				not_converged = False
-	#print running time
-	print("--- %s seconds ---" % (time.time() - start_time))
-	return w
-	pass
-
 
 def cvxopt_predict(w, b, x_test):
 	y_pred = []
@@ -341,18 +275,6 @@ def cvxopt_predict(w, b, x_test):
 		elif(pred[0][0] < 0):
 			y_pred.append(np.array([1, 0]))
 	return y_pred
-
-def predict(w, x_test):
-	y_pred = []
-	x_test = np.c_[x_test,np.ones(len(x_test))]
-	for i in x_test:
-		pred = np.dot(w,i)
-		if(pred > 0):
-			y_pred.append(np.array([0, 1]))
-		elif(pred < 0):
-			y_pred.append(np.array([1, 0]))
-	return y_pred
-
 
 if __name__ == '__main__':
 	importdata()
