@@ -2,7 +2,9 @@ import nltk
 from nltk.corpus import brown
 from nltk.stem.snowball import SnowballStemmer
 from sklearn.feature_extraction import DictVectorizer
-from sklearn import svm
+from sklearn.svm import LinearSVC
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 import random
 import numpy as np
 
@@ -112,17 +114,19 @@ def train(num_cross_valid):
 			else:
 				test_set = test_set + dataset[j]
 
-		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[0:3000])
+		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[0:10000])
 		
 		print("Training started")
-		linear = svm.SVC(kernel='rbf', C=5, decision_function_shape='ovr').fit(feature_vecs, pos_tags)
+		linear = make_pipeline(StandardScaler(), LinearSVC(tol=1e-3, random_state=0, max_iter=50, verbose=1, dual=False))
+		linear.fit(feature_vecs.toarray(), np.array(pos_tags))
+		# linear = svm.SVC(kernel='linear', C=1, decision_function_shape='ovr', verbose=1).fit(feature_vecs, pos_tags)
 		print("Training ended")
 
-		_, test_vecs, test_pos = getFeatureData(test_set[0:3000], vectorizer, False)
+		_, test_vecs, test_pos = getFeatureData(test_set[0:1000], vectorizer, False)
 
-		linear_pred = linear.predict(test_vecs)
+		linear_pred = linear.predict(test_vecs.toarray())
 		print(sum(linear_pred == test_pos), len(test_pos))
-		accuracy_lin = linear.score(test_vecs, test_pos)
+		accuracy_lin = linear.score(test_vecs.toarray(), test_pos)
 		print('Accuracy Linear Kernel:', accuracy_lin)
 
 		# print(len(feature_vecs.toarray()[0]), pos_tags[0])
