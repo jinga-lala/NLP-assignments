@@ -126,8 +126,8 @@ def train(num_cross_valid, word_vect):
 				train_set = train_set + dataset[j]
 			else:
 				test_set = test_set + dataset[j]
-
-		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[0:2500], word_vect)
+		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[0:1000], word_vect)
+		_, test_vecs, test_pos = getFeatureData(test_set[0:300], word_vect, vectorizer, False)
 		
 		print("Training started")
 		
@@ -136,13 +136,49 @@ def train(num_cross_valid, word_vect):
 		
 
 		# linear.fit(feature_vecs, pos_tags)
+		# O vs R
+
+		tag_classifiers = []
+		tags2 = []
+		for cnt, k in enumerate(tags):
+			tg_d = []
+			vl = 0
+			for l in pos_tags:
+				if l==k:
+					vl += 1
+					tg_d.append(0)
+				else:
+					tg_d.append(1)
+			if vl == 0:
+				continue
+			tags2.append(k)
+			print("Tag ", k, " training started. Num tags", vl)
+			svm_cl = SVC(kernel='linear', C=1, verbose=1, probability=True).fit(feature_vecs, tg_d)
+			print("Tag ", k, " training finished")
+			tag_classifiers.append(svm_cl)
+
+		print("Part training finished")
 		linear = SVC(kernel='linear', C=1, decision_function_shape='ovr', verbose=1).fit(feature_vecs, pos_tags)
 		print("Training ended")
 
-		_, test_vecs, test_pos = getFeatureData(test_set[0:1000], word_vect, vectorizer, False)
+		print("Test started")
+		outs = []
+		for cnt, _ in enumerate(tags2):
+			print("Part Test started for ", cnt)
+			outs.append(tag_classifiers[cnt].predict_proba(test_vecs))
+		print("Part Test finished")
+
+		outs = np.array(outs)
+		out_tags = []
+		for cnt, k in enumerate(test_vecs):
+			# print("Tagging started for ", cnt)
+			out_tags.append(tags2[np.argmax(outs[:, cnt, 0])])
+		print("Output started")
+
 
 		linear_pred = linear.predict(test_vecs)
 		print(sum(linear_pred == test_pos), len(test_pos))
+		print(sum(out_tags == test_pos), len(test_pos))
 		accuracy_lin = linear.score(test_vecs, test_pos)
 		print('Accuracy Linear Kernel:', accuracy_lin)
 
