@@ -127,13 +127,13 @@ def train(num_cross_valid, word_vect):
 			else:
 				test_set = test_set + dataset[j]
 
-		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:200], word_vect)
+		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:50], word_vect)
 		print("Using only", 200, "sentences for training svm model")
 		print("Training Dataset size:", 200)
 		print("Number of word (feature) vectors:", len(feature_vecs))
 		print("Feature length: ", len(feature_vecs[0]))
 
-		_, test_vecs, test_pos = getFeatureData(test_set[0:10000], word_vect, vectorizer, False)
+		_, test_vecs, test_pos = getFeatureData(test_set[0:100], word_vect, vectorizer, False)
 		print("Using ", 10000, "sentences for testing svm model")
 		print("Test Dataset size:", 10000)
 		print("Number of word (feature) vectors:", len(test_vecs))
@@ -278,7 +278,7 @@ def train(num_cross_valid, word_vect):
 
 
 def cvxopt_train(X, y):
-	C = 1
+	C = 2
 	m,n = X.shape
 	y = y.reshape(-1,1) * 1.
 	X_dash = y * X
@@ -315,15 +315,15 @@ if __name__ == '__main__':
 	importdata()
 
 	# Run only once
-	# print("Finding word embedding model...")
-	# model = get_word_embedding_model()
-	# word_vect = model.wv
-	# # print(word_vect['the'])
+	print("Finding word embedding model...")
+	model = get_word_embedding_model()
+	word_vect = model.wv
+	# print(word_vect['the'])
 	
-	print("Loading word embedding model...")
-	fname = get_tmpfile("word_vector.kv")
+	# print("Loading word embedding model...")
+	# fname = get_tmpfile("word_vector.kv")
 	# word_vect.save(fname)
-	word_vect = KeyedVectors.load(fname, mmap='r')
+	# word_vect = KeyedVectors.load(fname, mmap='r')
 	# print(word_vect['the'])
 	print("Begin...")
 	train(5, word_vect)
