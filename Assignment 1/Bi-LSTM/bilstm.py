@@ -15,7 +15,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-
+from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("--cross_validation", type=int, default=0)
 ap.add_argument("--load_trained_model", type=int, default=0)
@@ -191,6 +191,9 @@ for test_index in range(0,5):
     else:
       model.load_state_dict(torch.load('./models/POS_bilstm_1.pth'))
 
+  if av.load_trained_model==0:
+    torch.save(model.state_dict(), f'./models/POS_bilstm_{test_index+1}.pth')
+    model.load_state_dict(torch.load('./models/POS_bilstm_1.pth'))
   ###Testing
   b = len(test_word_set)
   model.eval()
@@ -204,7 +207,7 @@ for test_index in range(0,5):
    
     pred_all.extend(pred.detach().cpu().data)
     gold_all.extend(gold)
-  torch.save(model.state_dict(), f'./models/POS_bilstm_{test_index+1}.pth')
+  
   print('-'*100)
   print(f"Performance of Cross validation: {test_index+1} ")
   print(f"Accuracy: {accuracy_score(gold_all, pred_all)}")
@@ -227,3 +230,4 @@ ax.set_ylabel('True labels')
 ax.set_title('Confusion Matrix') 
 ax.xaxis.set_ticklabels(list(indextags.keys()))
 ax.yaxis.set_ticklabels(list(indextags.keys()));
+plt.show()
