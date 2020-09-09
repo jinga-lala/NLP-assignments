@@ -92,7 +92,9 @@ def getFeatureData(sentence_dataset, word_vect, vectorizer = DictVectorizer(), r
 			'is_last' : i==len(sent)-1,
 			'is_capitalized' : sent[i][0][0].upper == sent[i][0][0],
 			'is_numeric' : sent[i][0].isdigit(),
+			'prefix-1' : sent[i][0][0],
 			'prefix-2' : '' if len(sent[i][0]) < 2  else sent[i][0][:1],
+			'suffix-1' : sent[i][0][-1],
 			'suffix-2' : '' if len(sent[i][0]) < 2  else sent[i][0][-2:]
 			}
 			word_embeds.append(word_vect[sent[i][0]])
@@ -127,13 +129,13 @@ def train(num_cross_valid, word_vect):
 			else:
 				test_set = test_set + dataset[j]
 
-		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:50], word_vect)
+		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:100], word_vect)
 		print("Using only", 200, "sentences for training svm model")
 		print("Training Dataset size:", 200)
 		print("Number of word (feature) vectors:", len(feature_vecs))
 		print("Feature length: ", len(feature_vecs[0]))
 
-		_, test_vecs, test_pos = getFeatureData(test_set[0:100], word_vect, vectorizer, False)
+		_, test_vecs, test_pos = getFeatureData(test_set[0:1000], word_vect, vectorizer, False)
 		print("Using ", 10000, "sentences for testing svm model")
 		print("Test Dataset size:", 10000)
 		print("Number of word (feature) vectors:", len(test_vecs))
@@ -213,6 +215,8 @@ def train(num_cross_valid, word_vect):
 
 		# linear_pred = linear.predict(test_vecs)
 		# print(sum(linear_pred == test_pos), len(test_pos))
+		print(sum(out_tags1 == test_pos), len(test_pos))
+		print(sum(out_tags == test_pos), len(test_pos))
 		
 		# record observation
 		obs.accuracy = (sum(out_tags1 == test_pos) * 100) / len(test_pos)
