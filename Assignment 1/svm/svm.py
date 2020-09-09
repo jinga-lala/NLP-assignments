@@ -130,14 +130,14 @@ def train(num_cross_valid, word_vect):
 				test_set = test_set + dataset[j]
 
 		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:100], word_vect)
-		print("Using only", 200, "sentences for training svm model")
-		print("Training Dataset size:", 200)
+		print("Using only", 100, "sentences for training svm model")
+		print("Training Dataset size:", 100)
 		print("Number of word (feature) vectors:", len(feature_vecs))
 		print("Feature length: ", len(feature_vecs[0]))
 
 		_, test_vecs, test_pos = getFeatureData(test_set[0:1000], word_vect, vectorizer, False)
-		print("Using ", 10000, "sentences for testing svm model")
-		print("Test Dataset size:", 10000)
+		print("Using ", 1000, "sentences for testing svm model")
+		print("Test Dataset size:", 1000)
 		print("Number of word (feature) vectors:", len(test_vecs))
 		print("Feature length: ", len(test_vecs[0]))
 
