@@ -127,17 +127,17 @@ def train(num_cross_valid, word_vect):
 			else:
 				test_set = test_set + dataset[j]
 
-		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:40], word_vect)
-		print("Using only", 150, "sentences for training svm model")
-		print("Training Dataset size:", 150)
+		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:200], word_vect)
+		print("Using only", 200, "sentences for training svm model")
+		print("Training Dataset size:", 200)
 		print("Number of word (feature) vectors:", len(feature_vecs))
 		print("Feature length: ", len(feature_vecs[0]))
 
-		_, test_vecs, test_pos = getFeatureData(test_set[0:40], word_vect, vectorizer, False)
+		_, test_vecs, test_pos = getFeatureData(test_set[0:10000], word_vect, vectorizer, False)
 		print("Using ", 10000, "sentences for testing svm model")
 		print("Test Dataset size:", 10000)
 		print("Number of word (feature) vectors:", len(test_vecs))
-		print("Feature length: ", len(feature_vecs[0]))
+		print("Feature length: ", len(test_vecs[0]))
 
 		print("Begin training one vs rest classifiers for each tag...")
 		tag_classifiers = []
@@ -248,7 +248,7 @@ def train(num_cross_valid, word_vect):
 	for obsv in observations:
 		avg_acc += obsv.accuracy
 
-	print("Our average accuracy: ", avg_acc)
+	print("Our average accuracy: ", avg_acc/num_cross_valid)
 
 	per_pos = dict()
 	count = dict()
