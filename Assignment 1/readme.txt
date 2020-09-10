@@ -25,6 +25,5 @@ pip3 install tqdm
 pip3 install torch
 
 Execution instruction
-python3 bilstm.py --cross_validation 0 --load_model 0 #trains for one split
-python3 bilstm.py --cross_validation 1 --load_model 0 #trains for 5-fold cross validation
-python3 bilstm.py --cross_validation 0 --load_model 1 #loads a pretrained model and test its performance
+python3 bilstm.py --cross_validation 0  #trains for one split
+python3 bilstm.py --cross_validation 1  #trains for 5-fold cross validation
