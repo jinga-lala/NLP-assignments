@@ -18,7 +18,6 @@ from sklearn.metrics import accuracy_score, confusion_matrix, classification_rep
 from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("--cross_validation", type=int, default=0)
-ap.add_argument("--load_trained_model", type=int, default=0)
 av = ap.parse_args()
 
 def importdata():
@@ -170,30 +169,24 @@ for test_index in range(0,5):
   optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
   epochs = 5
   ###Training
-  if av.load_trained_model==0:
-    a = len(word_set)
-    model.train()
-    loss_total = 0
+  a = len(word_set)
+  model.train()
+  loss_total = 0
+  
+  for _ in tqdm(range(epochs)):
+    print("*"*100)
+    for i in range(a):
+      out = model(torch.tensor(word_set[i]).unsqueeze(0).to(device))
+      loss = loss_criteria(out[0], torch.tensor(tag_set[i]).float().to(device))
+      loss.backward()
+      loss_total+= loss.detach().cpu()
+      if i%4096==0 and i!=0:
+        print(f"loss: {loss_total} for batch size:4096 cross validation: {test_index+1}" )
+        
+        optimizer.step()
+        optimizer.zero_grad()
+        loss_total = 0
     
-    for _ in tqdm(range(epochs)):
-      print("*"*100)
-      for i in range(a):
-        out = model(torch.tensor(word_set[i]).unsqueeze(0).to(device))
-        loss = loss_criteria(out[0], torch.tensor(tag_set[i]).float().to(device))
-        loss.backward()
-        loss_total+= loss.detach().cpu()
-        if i%4096==0 and i!=0:
-          print(f"loss: {loss_total} for batch size:4096 cross validation: {test_index+1}" )
-          
-          optimizer.step()
-          optimizer.zero_grad()
-          loss_total = 0
-    else:
-      model.load_state_dict(torch.load('./models/POS_bilstm_1.pth'))
-
-  if av.load_trained_model==0:
-    torch.save(model.state_dict(), f'./models/POS_bilstm_{test_index+1}.pth')
-    model.load_state_dict(torch.load('./models/POS_bilstm_1.pth'))
   ###Testing
   b = len(test_word_set)
   model.eval()
