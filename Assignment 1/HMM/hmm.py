@@ -2,6 +2,9 @@ import nltk
 from nltk.corpus import brown
 import random 
 import numpy as np
+import seaborn as sn
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def importdata():
@@ -31,6 +34,8 @@ def Parition_in_n(input_list, n):
 
 
 if __name__ == '__main__':
+
+	plt.rcParams.update({'font.size': 8})
 
 	importdata()
 
@@ -72,10 +77,17 @@ if __name__ == '__main__':
 		indexwords[Set_of_Words[x]] = x
 
 
+	#####Confusion Matrix#############
+	confusion_matrix = [[0 for i in range(len(Set_of_Tags))] for j in range(len(Set_of_Tags))]
+	confusion_matrix = np.asarray(confusion_matrix,dtype=np.float64)
+
+
 	#######################5 Cross Validation#########################
 	Index_range = range(0,5)
 
 	for test_index in Index_range:
+
+		print("Running "+str(test_index+1)+" iteration")
 
 		#####Probability Matrix##########
 		prob_transition = [[0 for i in range(len(Set_of_Tags))] for j in range(len(Set_of_Tags))]
@@ -192,6 +204,10 @@ if __name__ == '__main__':
 			###########Calculating Accuracy#################
 			for t in range(0,len(final_tags)):
 
+				####Updating Confusion matrix
+				if test_index==4:
+					confusion_matrix[indextags[tag_sequence[t]]][indextags[final_tags[t]]] = confusion_matrix[indextags[tag_sequence[t]]][indextags[final_tags[t]]]+1
+
 				if final_tags[t] == tag_sequence[t]:
 					Correct_Tags = Correct_Tags+1
 
@@ -201,8 +217,17 @@ if __name__ == '__main__':
 
 		Accuracy = Correct_Tags/(Correct_Tags+Incorrect_Tags)
 
-		print(Accuracy)
+		print("Accuracy "+str(100*Accuracy))
 
+
+dataframe_confusion_matrix = pd.DataFrame(confusion_matrix, index = [Set_of_Tags[i] for i in range(len(Set_of_Tags))], columns = [Set_of_Tags[i] for i in range(len(Set_of_Tags))])
+
+fig = plt.figure(figsize = (10,10))
+sn.heatmap(dataframe_confusion_matrix, annot=False, cmap="YlGnBu")
+fig.suptitle('Confusion Matrix')
+plt.xlabel('Predicted labels')
+plt.ylabel('True labels')
+plt.show()
 
 
 		

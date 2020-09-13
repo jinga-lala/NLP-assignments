@@ -1,3 +1,19 @@
+#HMM
+Requirements
+Python3
+    +
+pip3 install nltk
+pip3 install numpy
+pip3 install matplotlib
+pip3 install pandas
+pip3 install seaborn
+
+Execution instructions:
+python3 hmm.py
+
+(Outputs the iteration number and accuracy)
+(Algorithm takes < 10mins to train, test and print confusion matrix for the final iteration)
+
 #SVM:
 Requirements -
 Python3
