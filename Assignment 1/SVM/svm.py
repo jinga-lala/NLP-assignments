@@ -134,12 +134,18 @@ def svm(num_cross_valid, word_vect):
 				test_set = test_set + dataset[j]
 
 		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:100], word_vect)
+		mean = np.mean(feature_vecs)
+		scale = np.std(feature_vecs)
+		feature_vecs = (feature_vecs - mean) / scale
 		print("Using only", 100, "sentences for training svm model")
 		print("Training Dataset size:", 100)
 		print("Number of word (feature) vectors:", len(feature_vecs))
 		print("Feature length: ", len(feature_vecs[0]))
 
 		_, test_vecs, test_pos = getFeatureData(test_set[0:1000], word_vect, vectorizer, False)
+		# mean = np.mean(test_vecs)
+		# scale = np.std(test_vecs)
+		test_vecs = (test_vecs - mean) / scale
 		print("Using ", 1000, "sentences for testing svm model")
 		print("Test Dataset size:", 1000)
 		print("Number of word (feature) vectors:", len(test_vecs))
