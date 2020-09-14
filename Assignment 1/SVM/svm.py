@@ -20,9 +20,10 @@ from cvxopt import solvers as cvxopt_solvers
 
 class Observations:
 	def __init__(self):
+		self.train_accuracy = 0.0
 		self.accuracy = 0.0
 		self.per_pos_acc = dict()
-		self.conf_matx = np.zeros((2, 2))
+		self.conf_matx = dict()
 
 def importdata():
 	nltk.download('brown')
@@ -97,20 +98,23 @@ def getFeatureData(sentence_dataset, word_vect, vectorizer = DictVectorizer(), r
 			'suffix-1' : sent[i][0][-1],
 			'suffix-2' : '' if len(sent[i][0]) < 2  else sent[i][0][-2:]
 			}
+			# curr_wrd_embed = list(word_vect[sent[i][0]])
+			# if i==0:
+			# 	curr_wrd_embed = curr_wrd_embed + list(word_vect["."])
+			# else:
+			# 	curr_wrd_embed = curr_wrd_embed + list(word_vect[sent[i-1][0]])
 			word_embeds.append(word_vect[sent[i][0]])
 			feature_vec.append(features)
 			pos_tags.append(sent[i][1])
-	# print("Done")
 
 	if refit:
 		vectorizer.fit(feature_vec)
 	
 	vectorized_features = vectorizer.transform(feature_vec).toarray()
 	all_features = [np.array(list(vectorized_features[i])+list(word_embeds[i])) for i in range(len(word_embeds))]
-	# print(len(all_features[0]))
 	return vectorizer, np.array(all_features), np.array(pos_tags)
 
-def train(num_cross_valid, word_vect):
+def svm(num_cross_valid, word_vect):
 	print("Fetch Data...")
 	dataset, words, tags = getData(num_cross_valid)
 	print("Dataset contains ", len(words), "distinct words and", len(tags), " distinct tags")
@@ -178,39 +182,49 @@ def train(num_cross_valid, word_vect):
 		print("\nTesting started...")
 		outs = []
 		outs1 = []
+		train_outs = []
+		train_outs1 = []
 		for cnt, tgs in enumerate(tags2):
 			print("Predicting tags for test data...")
 			print("Predicting probability for tag-", tgs)
-			# outs1.append(predict(ws[cnt], test_vecs))
+			train_outs1.append(cvxopt_predict(ws[cnt], bs[cnt], feature_vecs))
 			outs1.append(cvxopt_predict(ws[cnt], bs[cnt], test_vecs))
 			print("Predicting probability for sklearn's svc")
+			train_outs.append(tag_classifiers[cnt].predict_proba(feature_vecs))
 			outs.append(tag_classifiers[cnt].predict_proba(test_vecs))
 			print(len(tags2)-cnt-1, "left to test.")
 		print("Prediction finished.")
 
 		outs = np.array(outs)
 		outs1 = np.array(outs1)
-		# print("results")
+		train_outs = np.array(train_outs)
+		train_outs1 = np.array(train_outs1)
 
-		outs_tmp = []
-		for kk in outs:
-			c = []
-			for i in range(len(kk)):
-				if kk[i][0]>kk[i][1]:
-					c.append(np.array([1, 0]))
-				else:
-					c.append(np.array([0, 1]))
-			outs_tmp.append(np.array(c))
+		# outs_tmp = []
+		# for kk in outs:
+		# 	c = []
+		# 	for i in range(len(kk)):
+		# 		if kk[i][0]>kk[i][1]:
+		# 			c.append(np.array([1, 0]))
+		# 		else:
+		# 			c.append(np.array([0, 1]))
+		# 	outs_tmp.append(np.array(c))
 
 		# outs = np.array(outs_tmp)
 
 		out_tags = []
 		out_tags1 = []
+		train_out_tags = []
+		train_out_tags1 = []
 
 		for cnt, k in enumerate(test_vecs):
-			# print("Tagging started for ", cnt)
 			out_tags1.append(tags2[np.argmax(outs1[:, cnt, 0])])
 			out_tags.append(tags2[np.argmax(outs[:, cnt, 0])])
+
+		for cnt, k in enumerate(feature_vecs):
+			train_out_tags1.append(tags2[np.argmax(train_outs1[:, cnt, 0])])
+			train_out_tags.append(tags2[np.argmax(train_outs[:, cnt, 0])])
+
 		print("Results for phase", phase+1, " out of 5.")
 
 		# linear_pred = linear.predict(test_vecs)
@@ -219,40 +233,39 @@ def train(num_cross_valid, word_vect):
 		print(sum(out_tags == test_pos), len(test_pos))
 		
 		# record observation
+		obs.train_accuracy = (sum(train_out_tags1 == pos_tags) * 100) / len(pos_tags)
 		obs.accuracy = (sum(out_tags1 == test_pos) * 100) / len(test_pos)
+		print("Sklearn's svc training accuracy :", (sum(train_out_tags == pos_tags)*100)/len(pos_tags))
+		print("Our training accuracy :", obs.train_accuracy)
 		print("Sklearn's svc accuracy :", (sum(out_tags == test_pos)*100)/len(test_pos))
 		print("Our accuracy :", obs.accuracy)
 
-		conf = np.zeros((2, 2))
 		for cnt, k in enumerate(tags2):
 			per_tag_pred = np.array([1 if x == k else 0 for x in out_tags1])
 			per_tag_crkt = np.array([1 if x == k else 0 for x in test_pos])
 			obs.per_pos_acc[k] = (sum(per_tag_pred == per_tag_crkt) * 100) / len(test_pos)
-			conf[0][0] += sum(per_tag_crkt * per_tag_pred)
-			conf[0][1] += sum((1 - per_tag_crkt) * per_tag_pred)
-			conf[1][0] += sum(per_tag_crkt * (1 - per_tag_pred))
-			conf[1][1] += sum((1 - per_tag_crkt) * (1 - per_tag_pred))
-		obs.conf_matx = conf / len(tags2)
+			conf = np.zeros((2, 2))
+			conf[0][0] = sum(per_tag_crkt * per_tag_pred)
+			conf[0][1] = sum((1 - per_tag_crkt) * per_tag_pred)
+			conf[1][0] = sum(per_tag_crkt * (1 - per_tag_pred))
+			conf[1][1] = sum((1 - per_tag_crkt) * (1 - per_tag_pred))
+			obs.conf_matx[k] = conf
 
 		observations.append(obs)
 
-		# accuracy_lin = linear.score(test_vecs, test_pos)
-		# print('Accuracy Linear Kernel:', accuracy_lin)
-
-		# print(len(feature_vecs.toarray()[0]), pos_tags[0])
-
-		# Train using svm sklearn
-
-
-		#Test accuracy
 	print("Finding accumulated results...")
-	# print(observations)
 
+	train_avg_acc = 0
+	for obsv in observations:
+		train_avg_acc += obsv.train_accuracy
+
+	print("Our average training accuracy: ", train_avg_acc/num_cross_valid)
+	
 	avg_acc = 0
 	for obsv in observations:
 		avg_acc += obsv.accuracy
 
-	print("Our average accuracy: ", avg_acc/num_cross_valid)
+	print("Our average test accuracy: ", avg_acc/num_cross_valid)
 
 	per_pos = dict()
 	count = dict()
@@ -270,14 +283,20 @@ def train(num_cross_valid, word_vect):
 	print("per-POS accuracy :")
 	print(per_pos)
 
-	conf_mt = np.zeros((2, 2))
 	cnt=0
+	conf_mt = dict()
 	for i in observations:
-		conf_mt += i.conf_matx
+		for tg, vl in i.conf_matx.items():
+			if tg not in conf_mt:
+				conf_mt[tg]=vl
+			else:
+				conf_mt[tg]+=vl
 		cnt+=1
-	conf_mt /= cnt
 
-	print("Confusion Matrix :")
+	for tg, _ in conf_mt.items():
+		conf_mt[tg] /= cnt
+
+	print("Confusion Matrix (o vs r) :")
 	print(conf_mt)
 
 
@@ -330,5 +349,5 @@ if __name__ == '__main__':
 	# word_vect = KeyedVectors.load(fname, mmap='r')
 	# print(word_vect['the'])
 	print("Begin...")
-	train(5, word_vect)
+	svm(5, word_vect)
 	print("End.")
