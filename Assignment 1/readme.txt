@@ -22,6 +22,9 @@ pip install -U scikit-learn
 pip install gensim
 pip install nltk
 pip install cvxopt
+pip3 install matplotlib
+pip3 install seaborn
+pip3 install numpy
 
 (gensim for word2vec, cvxopt for quadratic optimization solver reqiured for svm).
 

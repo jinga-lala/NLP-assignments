@@ -10,6 +10,7 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.svm import SVC               # Importing this only for comparison purposes
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import confusion_matrix
 
 import random
 import numpy as np
@@ -18,12 +19,17 @@ import time
 from cvxopt import matrix as cvxopt_matrix
 from cvxopt import solvers as cvxopt_solvers
 
+import seaborn as sn
+import matplotlib.pyplot as plt 
+
 class Observations:
 	def __init__(self):
 		self.train_accuracy = 0.0
 		self.accuracy = 0.0
 		self.per_pos_acc = dict()
 		self.conf_matx = dict()
+		self.conf = None
+		self.labels = None
 
 def importdata():
 	nltk.download('brown')
@@ -133,7 +139,7 @@ def svm(num_cross_valid, word_vect):
 			else:
 				test_set = test_set + dataset[j]
 
-		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:100], word_vect)
+		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:120], word_vect)
 		mean = np.mean(feature_vecs)
 		scale = np.std(feature_vecs)
 		feature_vecs = (feature_vecs - mean) / scale
@@ -256,6 +262,8 @@ def svm(num_cross_valid, word_vect):
 			conf[1][0] = sum(per_tag_crkt * (1 - per_tag_pred))
 			conf[1][1] = sum((1 - per_tag_crkt) * (1 - per_tag_pred))
 			obs.conf_matx[k] = conf
+			obs.conf = confusion_matrix(test_pos, out_tags1, labels=tags2)
+			obs.labels = tags2
 
 		observations.append(obs)
 
@@ -304,6 +312,17 @@ def svm(num_cross_valid, word_vect):
 
 	print("Confusion Matrix (o vs r) :")
 	print(conf_mt)
+
+	fig = plt.figure(figsize = (12, 12))
+	sn.heatmap(observations[0].conf, annot=False, cmap="YlGnBu")
+	fig.suptitle('Confusion Matrix')
+	plt.xlabel('Tags')
+	plt.ylabel('Tags')
+	ind = [j for j in range(len(observations[0].labels))]
+	tgs = observations[0].labels
+	plt.xticks(ind, tgs)
+	plt.yticks(ind, tgs)
+	plt.show()
 
 
 def cvxopt_train(X, y):
