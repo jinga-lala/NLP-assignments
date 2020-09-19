@@ -12,7 +12,7 @@ Execution instructions:
 python3 hmm.py
 
 (Outputs the iteration number and accuracy)
-(Algorithm takes < 10mins to train, test and print confusion matrix for the final iteration)
+(Algorithm takes < 10mins to train, test and display confusion matrix for the final iteration)
 
 #SVM:
 Requirements -
