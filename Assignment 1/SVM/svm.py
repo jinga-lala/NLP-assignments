@@ -93,23 +93,33 @@ def getFeatureData(sentence_dataset, word_vect, vectorizer = DictVectorizer(), r
 	for sent in sentence_dataset:
 		for i in range(len(sent)):
 			features = {
+			'prev-prev-tag' : '' if i<=1 else sent[i-2][1],
 			'prev-tag' : '' if i==0 else sent[i-1][1],
-			'next-tag' : '' if i==len(sent)-1 else sent[i+1][1],
 			'is_first' : i==0,
 			'is_last' : i==len(sent)-1,
 			'is_capitalized' : sent[i][0][0].upper == sent[i][0][0],
+			'are_all_capitalized' : sent[i][0].upper() == sent[i][0],
+			'are_capitals_inside' : sent[i][0][1:].lower() != sent[i][0][1:],
 			'is_numeric' : sent[i][0].isdigit(),
 			'prefix-1' : sent[i][0][0],
 			'prefix-2' : '' if len(sent[i][0]) < 2  else sent[i][0][:1],
 			'suffix-1' : sent[i][0][-1],
 			'suffix-2' : '' if len(sent[i][0]) < 2  else sent[i][0][-2:]
 			}
-			# curr_wrd_embed = list(word_vect[sent[i][0]])
-			# if i==0:
-			# 	curr_wrd_embed = curr_wrd_embed + list(word_vect["."])
-			# else:
-			# 	curr_wrd_embed = curr_wrd_embed + list(word_vect[sent[i-1][0]])
-			word_embeds.append(word_vect[sent[i][0]])
+			curr_wrd_embed = list(word_vect[sent[i][0]])
+			if i==0:
+				curr_wrd_embed = curr_wrd_embed + list(word_vect["."]) + list(word_vect["."])
+			elif i==1:
+				curr_wrd_embed = curr_wrd_embed + list(word_vect[sent[i-1][0]]) + list(word_vect["."])
+			else:
+				curr_wrd_embed = curr_wrd_embed + list(word_vect[sent[i-1][0]]) + list(word_vect[sent[i-2][0]])
+
+			if i==len(sent)-1:
+				curr_wrd_embed = curr_wrd_embed + list(word_vect["."])
+			else:
+				curr_wrd_embed = curr_wrd_embed + list(word_vect[sent[i+1][0]])
+			# word_embeds.append(word_vect[sent[i][0]])
+			word_embeds.append(curr_wrd_embed)
 			feature_vec.append(features)
 			pos_tags.append(sent[i][1])
 
@@ -139,7 +149,7 @@ def svm(num_cross_valid, word_vect):
 			else:
 				test_set = test_set + dataset[j]
 
-		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:120], word_vect)
+		vectorizer, feature_vecs, pos_tags = getFeatureData(train_set[:100], word_vect)
 		mean = np.mean(feature_vecs)
 		scale = np.std(feature_vecs)
 		feature_vecs = (feature_vecs - mean) / scale
@@ -147,15 +157,6 @@ def svm(num_cross_valid, word_vect):
 		print("Training Dataset size:", 100)
 		print("Number of word (feature) vectors:", len(feature_vecs))
 		print("Feature length: ", len(feature_vecs[0]))
-
-		_, test_vecs, test_pos = getFeatureData(test_set[0:1000], word_vect, vectorizer, False)
-		# mean = np.mean(test_vecs)
-		# scale = np.std(test_vecs)
-		test_vecs = (test_vecs - mean) / scale
-		print("Using ", 1000, "sentences for testing svm model")
-		print("Test Dataset size:", 1000)
-		print("Number of word (feature) vectors:", len(test_vecs))
-		print("Feature length: ", len(test_vecs[0]))
 
 		print("Begin training one vs rest classifiers for each tag...")
 		tag_classifiers = []
@@ -192,6 +193,15 @@ def svm(num_cross_valid, word_vect):
 		print("Training ends.")
 
 		print("\nTesting started...")
+		_, test_vecs, test_pos = getFeatureData(test_set[0:1000], word_vect, vectorizer, False)
+		# mean = np.mean(test_vecs)
+		# scale = np.std(test_vecs)
+		test_vecs = (test_vecs - mean) / scale
+		print("Using ", 1000, "sentences for testing svm model")
+		print("Test Dataset size:", 1000)
+		print("Number of word (feature) vectors:", len(test_vecs))
+		print("Feature length: ", len(test_vecs[0]))
+		
 		outs = []
 		outs1 = []
 		train_outs = []
@@ -201,6 +211,7 @@ def svm(num_cross_valid, word_vect):
 			print("Predicting probability for tag-", tgs)
 			train_outs1.append(cvxopt_predict(ws[cnt], bs[cnt], feature_vecs))
 			outs1.append(cvxopt_predict(ws[cnt], bs[cnt], test_vecs))
+
 			print("Predicting probability for sklearn's svc")
 			train_outs.append(tag_classifiers[cnt].predict_proba(feature_vecs))
 			outs.append(tag_classifiers[cnt].predict_proba(test_vecs))
@@ -251,6 +262,22 @@ def svm(num_cross_valid, word_vect):
 		print("Our training accuracy :", obs.train_accuracy)
 		print("Sklearn's svc accuracy :", (sum(out_tags == test_pos)*100)/len(test_pos))
 		print("Our accuracy :", obs.accuracy)
+
+		# To see output pattern - uncomment
+		# cnt=0
+		# out=[]
+		# for h in test_set:
+		# 	oo = []
+		# 	for f in h:
+		# 		if cnt>400:
+		# 			break
+		# 		cnt+=1
+		# 		oo.append(f[0]+ "_" +f[1]+ "_" +out_tags1[cnt-1])
+		# 	out.append(oo)
+		# 	if cnt>400:
+		# 		break
+
+		# print(out)
 
 		for cnt, k in enumerate(tags2):
 			per_tag_pred = np.array([1 if x == k else 0 for x in out_tags1])
@@ -326,7 +353,7 @@ def svm(num_cross_valid, word_vect):
 
 
 def cvxopt_train(X, y):
-	C = 2
+	C = 10
 	m,n = X.shape
 	y = y.reshape(-1,1) * 1.
 	X_dash = y * X
@@ -347,16 +374,18 @@ def cvxopt_train(X, y):
 	w = ((y * alphas).T @ X).reshape(-1,1)
 	S = (alphas > 1e-4).flatten()
 	b = y[S] - np.dot(X[S], w)
-	return w, b
+	return w, b[0][0]
 
 def cvxopt_predict(w, b, x_test):
 	y_pred = []
 	for i in x_test:
-		pred = np.dot(w.T,i) + b
-		if(pred[0][0] > 0):
-			y_pred.append(np.array([0, 1]))
-		elif(pred[0][0] < 0):
-			y_pred.append(np.array([1, 0]))
+		pred = np.dot(w.T,i)[0] + b
+		if(pred > 0):
+			y_pred.append(np.array([-1*pred, pred]))
+			# y_pred.append(np.array([0, 1]))
+		elif(pred < 0):
+			y_pred.append(np.array([-1*pred, pred]))
+			# y_pred.append(np.array([1, 0]))
 	return y_pred
 
 if __name__ == '__main__':
