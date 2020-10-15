@@ -1,7 +1,9 @@
 import numpy as np
+from numpy import unravel_index
 import nltk
 from nltk.stem import PorterStemmer
 from nltk.classify import MaxentClassifier
+import pickle
 
 def import_Train_Data():
 	ftrain = open("./assignment2dataset/train.txt")
@@ -62,6 +64,16 @@ def Remove_Extra_Tag(Sentences):
 
 	return Final_Sentences
 
+def Get_Tagset(Sentences):
+
+	TagSet = []
+
+	for sentence in Sentences:
+		for word in sentence:
+			TagSet.append(word.split(" ")[2])
+
+	return set(TagSet)
+
 
 def build_labelled_features(Sentences):
 
@@ -82,28 +94,28 @@ def build_labelled_features(Sentences):
 			if word_index == 0:
 				# print(sentence[word_index])
 				cur_chunk = split_sentence[2]
-				prev_to_prev_POS = 'st1'
-				prev_POS = 'st2'
+				prev_to_prev_POS = 'st'
+				prev_POS = 'st'
 				cur_POS = split_sentence[1]
-				prev_to_prev_chunk = 'st1'
-				prev_chunk = 'st2'
-				cur_stem = PorterStemmer().stem(split_sentence[0])
-				prev_stem = 'st1'
-				prev_to_prev_stem = 'st2'
+				prev_to_prev_chunk = 'st'
+				prev_chunk = 'st'
+				cur_stem = PorterStemmer().stem(split_sentence[0].lower())
+				prev_stem = 'st'
+				prev_to_prev_stem = 'st'
 
 			elif word_index == 1:
 				# print(sentence[word_index])
 				prev_split = sentence[word_index-1].split(" ")
 
 				cur_chunk = split_sentence[2]
-				prev_to_prev_POS = 'st2'
+				prev_to_prev_POS = 'st'
 				prev_POS = prev_split[1]
 				cur_POS = split_sentence[1]
-				prev_to_prev_chunk = 'st2'
+				prev_to_prev_chunk = 'st'
 				prev_chunk = prev_split[2]
-				cur_stem = PorterStemmer().stem(split_sentence[0])
-				prev_stem = PorterStemmer().stem(prev_split[0])
-				prev_to_prev_stem = 'st2'
+				cur_stem = PorterStemmer().stem(split_sentence[0].lower())
+				prev_stem = PorterStemmer().stem(prev_split[0].lower())
+				prev_to_prev_stem = 'st'
 
 				
 			else:
@@ -116,8 +128,8 @@ def build_labelled_features(Sentences):
 				cur_POS = split_sentence[1]
 				prev_to_prev_chunk = prev_split2[2]
 				prev_chunk = prev_split1[2]
-				cur_stem = PorterStemmer().stem(split_sentence[0])
-				prev_stem = PorterStemmer().stem(prev_split1[0])
+				cur_stem = PorterStemmer().stem(split_sentence[0].lower())
+				prev_stem = PorterStemmer().stem(prev_split1[0].lower())
 				prev_to_prev_stem = PorterStemmer().stem(prev_split2[0])
 
 			labelled_item = cur_chunk, prev_to_prev_POS, prev_POS, cur_POS, prev_to_prev_chunk, prev_chunk, cur_stem, prev_stem, prev_to_prev_stem
@@ -162,7 +174,123 @@ if __name__ == '__main__':
 	Train_Sentences = Remove_Extra_Tag(Train_Sentences)
 	Test_Sentences = Remove_Extra_Tag(Test_Sentences)
 
+	Set_of_Tags = list(Get_Tagset(Train_Sentences))
+	Set_of_Tags.append('st')
+	Tag_Dict = {}
+
+	for tag_ind in range(0,len(Set_of_Tags)):
+		Tag_Dict[Set_of_Tags[tag_ind]] = tag_ind
+
 	labelled_features = build_labelled_features(Train_Sentences)
 
-	maxent_classifier = train_maxent_classifier(labelled_features)
+	# maxent_classifier = train_maxent_classifier(labelled_features)
+
+	f = open("my_classifier.pickle", "rb")
+	maxent_classifier = pickle.load(f)
+
+	#####Confusion Matrix
+	confusion_matrix = [[0 for i in range(len(Set_of_Tags))] for j in range(len(Set_of_Tags))]
+	confusion_matrix = np.asarray(confusion_matrix,dtype=np.float64)
+
+	#####Viterbi Algorithm
+	i = 0
+
+	Correct_Tags = 0.0
+	Incorrect_Tags = 0.0
+
+	for sentence in Test_Sentences:
+
+		sentence.insert(0,'st st st')
+		sentence.insert(0,'st st st')
+
+		stem_sequence = [PorterStemmer().stem(unit.split(" ")[0].lower()) for unit in sentence]
+		POStag_sequence = [unit.split(" ")[1] for unit in sentence]
+		Chunktag_sequence = [unit.split(" ")[2] for unit in sentence]
+
+		###Since there are 4 possibilities BB, BI, IB, II hence we will use these 4
+
+		Ans = [np.asarray([[0 for tag_prev in Set_of_Tags] for tag_prev_to_prev in Set_of_Tags],dtype=np.float64)]
+		Ans[0][Tag_Dict['B']][Tag_Dict['st']] += 1
+		
+		Ans_Tags = []
+
+		for x in range(3,len(stem_sequence)):
+
+			Best_prob = [[0 for i2 in range(len(Set_of_Tags))] for i1 in range(len(Set_of_Tags))]
+			Best_prob = np.asarray(Best_prob,dtype=np.float64)
+
+			Backtrack_Tag = [[0 for i2 in range(len(Set_of_Tags))] for i1 in range(len(Set_of_Tags))]
+			Backtrack_Tag = np.asarray(Backtrack_Tag,dtype=int)
+
+
+			for tag_prev in range(0,len(Set_of_Tags)):
+				for tag_prev_to_prev in range(0,len(Set_of_Tags)):
+
+					if Ans[-1][tag_prev][tag_prev_to_prev] == 0:
+						continue
+
+					###cur_chunk, prev_to_prev_POS, prev_POS, cur_POS, prev_to_prev_chunk, prev_chunk, cur_stem, prev_stem, prev_to_prev_stem
+					input_feature = Chunktag_sequence[x], POStag_sequence[x-2], POStag_sequence[x-1], POStag_sequence[x], Set_of_Tags[tag_prev_to_prev], Set_of_Tags[tag_prev], stem_sequence[x], stem_sequence[x-1], stem_sequence[x-2]
+
+					Maxent_probablity = maxent_classifier.prob_classify(Generate_MEMM_features(input_feature))
+
+					for tag_ind in range(0,len(Set_of_Tags)):
+						if Best_prob[tag_ind][tag_prev] < Ans[-1][tag_prev][tag_prev_to_prev]*Maxent_probablity.prob(Set_of_Tags[tag_ind]):
+							Best_prob[tag_ind][tag_prev] = Ans[-1][tag_prev][tag_prev_to_prev]*Maxent_probablity.prob(Set_of_Tags[tag_ind])
+							Backtrack_Tag[tag_ind][tag_prev] = tag_prev_to_prev
+
+					# if(Best_prob[tag1]<(Ans[-1][tag2]*prob_transition[tag2][tag1]*current_emission[tag1])):
+					# 	Best_prob[tag1] = Ans[-1][tag2]*prob_transition[tag2][tag1]*current_emission[tag1]
+					# 	Backtrack_Tag[tag1] = tag2
+
+
+			Ans.append(np.array(Best_prob))
+			Ans_Tags.append(np.array(Backtrack_Tag))
+
+
+		
+		final_tags = []
+
+		array_shape = Ans[-1].shape
+
+		max_arg = Ans[-1].argmax()
+		max_arg = unravel_index(max_arg, array_shape)
+
+		cur_chunk_tag = max_arg[0]
+		prev_chunk_tag = max_arg[1]
+
+		final_tag_index = []
+		final_tag_index.append(cur_chunk_tag)
+		final_tag_index.append(prev_chunk_tag)
+
+		for x in range(2,len(stem_sequence)-1):
+
+			prev_to_prev_chunk_tag = Ans_Tags[len(Ans)-x][cur_chunk_tag][prev_chunk_tag] 
+			final_tag_index.append(prev_to_prev_chunk_tag)
+			cur_chunk_tag = prev_chunk_tag
+			prev_chunk_tag = prev_to_prev_chunk_tag
+
+		for x in range(len(final_tag_index)-1,-1,-1):
+			final_tags.append(Set_of_Tags[final_tag_index[x]])
+
+		###########Calculating Accuracy#################
+		for t in range(1,len(final_tags)):
+
+			####Updating Confusion matrix
+			confusion_matrix[Tag_Dict[Chunktag_sequence[t]]][Tag_Dict[final_tags[t]]] = confusion_matrix[Tag_Dict[Chunktag_sequence[t]]][Tag_Dict[final_tags[t]]]+1
+
+			if final_tags[t] == Chunktag_sequence[t+1]:
+				Correct_Tags = Correct_Tags+1
+
+			else:
+				Incorrect_Tags = Incorrect_Tags+1
+			
+		#################################################
+
+	Accuracy = Correct_Tags/(Correct_Tags+Incorrect_Tags)
+
+	print(Accuracy)
+
+
+	
 
