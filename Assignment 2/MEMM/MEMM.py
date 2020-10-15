@@ -1,6 +1,7 @@
 import numpy as np
 import nltk
 from nltk.stem import PorterStemmer
+from nltk.classify import MaxentClassifier
 
 def import_Train_Data():
 	ftrain = open("./assignment2dataset/train.txt")
@@ -67,7 +68,7 @@ def build_labelled_features(Sentences):
 	####Feature Set being used
 	# 3 POS tags -> PrevtopPrev Prev Current 
 	# 2 chunk labels -> PrevtoPrev Prev
-	# 3  word vectors -> PrevtoPrev Prev Current => Stems
+	# 3  word-stems -> PrevtoPrev Prev Current => Stems
 	# Morphological Features -> isCaptital
 
 	labelled_features = []
@@ -87,6 +88,8 @@ def build_labelled_features(Sentences):
 				prev_to_prev_chunk = 'st1'
 				prev_chunk = 'st2'
 				cur_stem = PorterStemmer().stem(split_sentence[0])
+				prev_stem = 'st1'
+				prev_to_prev_stem = 'st2'
 
 			elif word_index == 1:
 				# print(sentence[word_index])
@@ -99,6 +102,9 @@ def build_labelled_features(Sentences):
 				prev_to_prev_chunk = 'st2'
 				prev_chunk = prev_split[2]
 				cur_stem = PorterStemmer().stem(split_sentence[0])
+				prev_stem = PorterStemmer().stem(prev_split[0])
+				prev_to_prev_stem = 'st2'
+
 				
 			else:
 				prev_split1 = sentence[word_index-1].split(" ")
@@ -106,34 +112,46 @@ def build_labelled_features(Sentences):
 
 				cur_chunk = split_sentence[2]
 				prev_to_prev_POS = prev_split2[1]
-				prev_POS = prev_split2[1]
+				prev_POS = prev_split1[1]
 				cur_POS = split_sentence[1]
 				prev_to_prev_chunk = prev_split2[2]
 				prev_chunk = prev_split1[2]
 				cur_stem = PorterStemmer().stem(split_sentence[0])
+				prev_stem = PorterStemmer().stem(prev_split1[0])
+				prev_to_prev_stem = PorterStemmer().stem(prev_split2[0])
 
-			labelled_item = cur_chunk, prev_to_prev_POS, prev_POS, cur_POS, prev_to_prev_chunk, prev_chunk, cur_stem
+			labelled_item = cur_chunk, prev_to_prev_POS, prev_POS, cur_POS, prev_to_prev_chunk, prev_chunk, cur_stem, prev_stem, prev_to_prev_stem
 			labelled_features.append(labelled_item)
 
 	return labelled_features
 
 
-def Generate_MEMM_features(labelled_feature):
+def Generate_MEMM_features(input_feature):
 	##can add capitalization
 
 	features = {}
 	
-	features['prev_to_prev_POS'] = labelled_features[1]
-	features['prev_POS'] = labelled_features[2]
-	features['cur_POS'] = labelled_features[3]
-	features['prev_to_prev_chunk'] = labelled_features[4]
-	features['prev_chunk'] = labelled_features[5]
-	features['cur_stem'] = labelled_features[6]
+	features['prev_to_prev_POS'] = input_feature[1]
+	features['prev_POS'] = input_feature[2]
+	features['cur_POS'] = input_feature[3]
+	features['prev_to_prev_chunk'] = input_feature[4]
+	features['prev_chunk'] = input_feature[5]
+	features['cur_stem'] = input_feature[6]
+	features['prev_stem'] = input_feature[7]
+	features['prev_to_prev_stem'] = input_feature[8]
 
 	return features
 
 
 def train_maxent_classifier(labelled_features):
+
+	train_set = []
+	for lf in labelled_features:
+
+		train_set.append((Generate_MEMM_features(lf), lf[0]))
+
+	maxent_classifier = MaxentClassifier.train(train_set, max_iter=10)
+	return maxent_classifier
 
 
 if __name__ == '__main__':
@@ -146,5 +164,5 @@ if __name__ == '__main__':
 
 	labelled_features = build_labelled_features(Train_Sentences)
 
-	print(labelled_features)
+	maxent_classifier = train_maxent_classifier(labelled_features)
 
