@@ -3,7 +3,12 @@ from numpy import unravel_index
 import nltk
 from nltk.stem import PorterStemmer
 from nltk.classify import MaxentClassifier
+from tqdm import tqdm
 import pickle
+import seaborn as sn
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
 
 def import_Train_Data():
 	ftrain = open("./assignment2dataset/train.txt")
@@ -99,9 +104,11 @@ def build_labelled_features(Sentences):
 				cur_POS = split_sentence[1]
 				prev_to_prev_chunk = 'st'
 				prev_chunk = 'st'
-				cur_stem = PorterStemmer().stem(split_sentence[0].lower())
+				cur_stem = split_sentence[0].lower()
 				prev_stem = 'st'
 				prev_to_prev_stem = 'st'
+				suffix = split_sentence[0].lower().replace(os.path.commonprefix([PorterStemmer().stem(cur_stem), split_sentence[0].lower()]),'')
+
 
 			elif word_index == 1:
 				# print(sentence[word_index])
@@ -113,9 +120,10 @@ def build_labelled_features(Sentences):
 				cur_POS = split_sentence[1]
 				prev_to_prev_chunk = 'st'
 				prev_chunk = prev_split[2]
-				cur_stem = PorterStemmer().stem(split_sentence[0].lower())
-				prev_stem = PorterStemmer().stem(prev_split[0].lower())
+				cur_stem = split_sentence[0].lower()
+				prev_stem = prev_split[0].lower()
 				prev_to_prev_stem = 'st'
+				suffix = split_sentence[0].lower().replace(os.path.commonprefix([PorterStemmer().stem(cur_stem), split_sentence[0].lower()]),'')
 
 				
 			else:
@@ -128,11 +136,13 @@ def build_labelled_features(Sentences):
 				cur_POS = split_sentence[1]
 				prev_to_prev_chunk = prev_split2[2]
 				prev_chunk = prev_split1[2]
-				cur_stem = PorterStemmer().stem(split_sentence[0].lower())
-				prev_stem = PorterStemmer().stem(prev_split1[0].lower())
-				prev_to_prev_stem = PorterStemmer().stem(prev_split2[0])
+				cur_stem = split_sentence[0].lower()
+				prev_stem = prev_split1[0].lower()
+				prev_to_prev_stem = prev_split2[0].lower()
+				suffix = split_sentence[0].lower().replace(os.path.commonprefix([PorterStemmer().stem(cur_stem), split_sentence[0].lower()]),'')
 
-			labelled_item = cur_chunk, prev_to_prev_POS, prev_POS, cur_POS, prev_to_prev_chunk, prev_chunk, cur_stem, prev_stem, prev_to_prev_stem
+
+			labelled_item = cur_chunk, prev_to_prev_POS, prev_POS, cur_POS, prev_to_prev_chunk, prev_chunk, cur_stem, prev_stem, prev_to_prev_stem, suffix
 			labelled_features.append(labelled_item)
 
 	return labelled_features
@@ -151,6 +161,7 @@ def Generate_MEMM_features(input_feature):
 	features['cur_stem'] = input_feature[6]
 	features['prev_stem'] = input_feature[7]
 	features['prev_to_prev_stem'] = input_feature[8]
+	features['suffix'] = input_feature[9]
 
 	return features
 
@@ -162,7 +173,9 @@ def train_maxent_classifier(labelled_features):
 
 		train_set.append((Generate_MEMM_features(lf), lf[0]))
 
-	maxent_classifier = MaxentClassifier.train(train_set, max_iter=10)
+	print("\nTraining Maxent Classifier on train.txt.")
+
+	maxent_classifier = MaxentClassifier.train(train_set, max_iter=15)
 	return maxent_classifier
 
 
@@ -174,7 +187,7 @@ if __name__ == '__main__':
 	Train_Sentences = Remove_Extra_Tag(Train_Sentences)
 	Test_Sentences = Remove_Extra_Tag(Test_Sentences)
 
-	Set_of_Tags = list(Get_Tagset(Train_Sentences))
+	Set_of_Tags = sorted(list(Get_Tagset(Train_Sentences)))
 	Set_of_Tags.append('st')
 	Tag_Dict = {}
 
@@ -183,27 +196,38 @@ if __name__ == '__main__':
 
 	labelled_features = build_labelled_features(Train_Sentences)
 
-	# maxent_classifier = train_maxent_classifier(labelled_features)
+	maxent_classifier = train_maxent_classifier(labelled_features)
 
-	f = open("my_classifier.pickle", "rb")
+	print("\nStoring Maxent Classifier into maxent_classifier.pickle")
+
+	f = open("maxent_classifier.pickle", "wb")
+	pickle.dump(maxent_classifier , f)
+	f.close()
+
+	print("Loading Classifier from file\n")
+
+	f = open("maxent_classifier.pickle", "rb")
 	maxent_classifier = pickle.load(f)
-
+	f.close()
 	#####Confusion Matrix
-	confusion_matrix = [[0 for i in range(len(Set_of_Tags))] for j in range(len(Set_of_Tags))]
+	confusion_matrix = [[0 for i in range(len(Set_of_Tags)-1)] for j in range(len(Set_of_Tags)-1)]
 	confusion_matrix = np.asarray(confusion_matrix,dtype=np.float64)
 
 	#####Viterbi Algorithm
-	i = 0
 
 	Correct_Tags = 0.0
 	Incorrect_Tags = 0.0
 
-	for sentence in Test_Sentences:
+	print("Starting Viterbi decoding\n")
+
+	for sentence_index in tqdm(range(len(Test_Sentences))):
+
+		sentence = Test_Sentences[sentence_index]
 
 		sentence.insert(0,'st st st')
 		sentence.insert(0,'st st st')
 
-		stem_sequence = [PorterStemmer().stem(unit.split(" ")[0].lower()) for unit in sentence]
+		stem_sequence = [unit.split(" ")[0].lower() for unit in sentence]
 		POStag_sequence = [unit.split(" ")[1] for unit in sentence]
 		Chunktag_sequence = [unit.split(" ")[2] for unit in sentence]
 
@@ -229,8 +253,9 @@ if __name__ == '__main__':
 					if Ans[-1][tag_prev][tag_prev_to_prev] == 0:
 						continue
 
-					###cur_chunk, prev_to_prev_POS, prev_POS, cur_POS, prev_to_prev_chunk, prev_chunk, cur_stem, prev_stem, prev_to_prev_stem
-					input_feature = Chunktag_sequence[x], POStag_sequence[x-2], POStag_sequence[x-1], POStag_sequence[x], Set_of_Tags[tag_prev_to_prev], Set_of_Tags[tag_prev], stem_sequence[x], stem_sequence[x-1], stem_sequence[x-2]
+					###cur_chunk, prev_to_prev_POS, prev_POS, cur_POS, prev_to_prev_chunk, prev_chunk, cur_stem, prev_stem, prev_to_prev_stem, suffix
+					suffix = stem_sequence[x].lower().replace(os.path.commonprefix([PorterStemmer().stem(PorterStemmer().stem(stem_sequence[x])), stem_sequence[x].lower()]),'')
+					input_feature = Chunktag_sequence[x], POStag_sequence[x-2], POStag_sequence[x-1], POStag_sequence[x], Set_of_Tags[tag_prev_to_prev], Set_of_Tags[tag_prev], stem_sequence[x], stem_sequence[x-1], stem_sequence[x-2], suffix
 
 					Maxent_probablity = maxent_classifier.prob_classify(Generate_MEMM_features(input_feature))
 
@@ -277,7 +302,7 @@ if __name__ == '__main__':
 		for t in range(1,len(final_tags)):
 
 			####Updating Confusion matrix
-			confusion_matrix[Tag_Dict[Chunktag_sequence[t]]][Tag_Dict[final_tags[t]]] = confusion_matrix[Tag_Dict[Chunktag_sequence[t]]][Tag_Dict[final_tags[t]]]+1
+			confusion_matrix[Tag_Dict[Chunktag_sequence[t+1]]][Tag_Dict[final_tags[t]]] = confusion_matrix[Tag_Dict[Chunktag_sequence[t+1]]][Tag_Dict[final_tags[t]]]+1
 
 			if final_tags[t] == Chunktag_sequence[t+1]:
 				Correct_Tags = Correct_Tags+1
@@ -289,7 +314,19 @@ if __name__ == '__main__':
 
 	Accuracy = Correct_Tags/(Correct_Tags+Incorrect_Tags)
 
-	print(Accuracy)
+	print("\n\nAccuracy = "+str(100*Accuracy)+"%\n")
+	print("Confusion matrix\n")
+	print(confusion_matrix)
+
+	dataframe_confusion_matrix = pd.DataFrame(confusion_matrix, index = [Set_of_Tags[i] for i in range(len(Set_of_Tags)-1)], columns = [Set_of_Tags[i] for i in range(len(Set_of_Tags)-1)])
+
+	fig = plt.figure(figsize = (8,8))
+	sn.heatmap(dataframe_confusion_matrix, annot=True, cmap="YlGnBu")
+	fig.suptitle('Confusion Matrix')
+	plt.xlabel('Predicted labels')
+	plt.ylabel('True labels')
+	plt.show()
+
 
 
 	
