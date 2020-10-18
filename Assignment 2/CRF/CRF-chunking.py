@@ -1,10 +1,12 @@
+import itertools
 from itertools import chain
-
+import matplotlib.pyplot as plt
 import nltk
 import sklearn
-
+import seaborn as sn
 import sklearn_crfsuite
 from sklearn_crfsuite import metrics
+from sklearn.metrics import confusion_matrix
 
 # Feature generation function
 def word2features(sent, i):
@@ -120,3 +122,26 @@ print("Overall Recall", overall_recall)
 print(metrics.flat_classification_report(
     y_test, y_pred, labels=labels, digits=3
 ))
+
+y_test_merged = list(itertools.chain(*y_test))
+y_pred_merged = list(itertools.chain(*y_pred))
+# print(type(y_test), y_test[0:20], y_pred[0:20])
+conf = confusion_matrix(y_test_merged, y_pred_merged, labels=labels)
+
+# ax= plt.subplot()
+# ax.set_title('Confusion Matrix')
+# ax.xaxis.set_ticklabels(['B', 'I'])
+# ax.yaxis.set_ticklabels(['B', 'I'])
+# sns.heatmap(conf, annot=True, ax = ax)
+# input("Press any key to close")
+
+fig = plt.figure(figsize = (4, 4))
+sn.heatmap(conf, annot=False)
+fig.suptitle('Confusion Matrix')
+plt.xlabel('Tags')
+plt.ylabel('Tags')
+ind = [j for j in range(2)]
+tgs = labels
+plt.xticks(ind, tgs)
+plt.yticks(ind, tgs)
+plt.show()
