@@ -181,8 +181,8 @@ def train_maxent_classifier(labelled_features):
 
 if __name__ == '__main__':
 
-	Train_Sentences = import_Test_Data()
-	Test_Sentences = import_Train_Data()
+	Test_Sentences = import_Test_Data()
+	Train_Sentences = import_Train_Data()
 
 	Train_Sentences = Remove_Extra_Tag(Train_Sentences)
 	Test_Sentences = Remove_Extra_Tag(Test_Sentences)
