@@ -1,0 +1,50 @@
+#MEMM
+Requirements
+Python3
+    +
+pip3 install nltk
+pip3 install numpy
+pip3 install matplotlib
+pip3 install pandas
+pip3 install seaborn
+pip3 install tqdm
+pip3 install cpickle
+
+Execution instructions:
+python3 MEMM.py
+
+(Outputs the iteration number for Maxent training and accuracy)
+(Algorithm takes a few minutes to train, test and display confusion matrix for the test data set)
+
+#SVM:
+Requirements -
+Python3
+   + 
+pip install -U scikit-learn
+pip install gensim
+pip install nltk
+pip install cvxopt
+pip3 install matplotlib
+pip3 install seaborn
+pip3 install numpy
+
+(gensim for word2vec, cvxopt for quadratic optimization solver reqiured for svm).
+
+Execution instructions:
+python3 svm.py
+
+(Detailed output would show the steps passed while running)
+
+#Bi-LSTM:
+Requirements
+pip3 install nltk
+pip3 install numpy
+pip3 install seaborn
+pip3 install matplotlib
+pip3 install sklearn
+pip3 install tqdm
+pip3 install torch
+
+Execution instruction
+python3 bilstm.py --cross_validation 0  #trains for one split
+python3 bilstm.py --cross_validation 1  #trains for 5-fold cross validation
