@@ -128,6 +128,53 @@ y_pred_merged = list(itertools.chain(*y_pred))
 # print(type(y_test), y_test[0:20], y_pred[0:20])
 conf = confusion_matrix(y_test_merged, y_pred_merged, labels=labels)
 
+X_test_merged =  list(itertools.chain(*X_test))
+
+k = 0
+
+d = {}
+
+# for i in X_test_merged:
+#     if y_test_merged[k]!=y_pred_merged[k]:
+#         for j in range(max(0, k-4), min(len(y_pred_merged)-1, k+4)):
+#             if j==k:
+#                 print("||| "+X_test_merged[j]['word']+"_"+X_test_merged[j]['pos']+"_"+y_test_merged[j]+"_"+y_pred_merged[j]+" ||| ", end="")
+#             else:
+#                 print(X_test_merged[j]['word']+"_"+X_test_merged[j]['pos']+"_"+y_test_merged[j]+"_"+y_pred_merged[j]+" ", end="")
+#         print("")
+#         print("")
+#     k+=1
+k=0
+for i in X_test_merged:
+    if y_test_merged[k]!=y_pred_merged[k]:
+        if k!=0 and X_test_merged[k-1]['pos']+"_"+X_test_merged[k]['pos'] not in d:
+            d[X_test_merged[k-1]['pos']+"_"+X_test_merged[k]['pos']] = {}
+            d[X_test_merged[k-1]['pos']+"_"+X_test_merged[k]['pos']]["B_I"] = 0
+            d[X_test_merged[k-1]['pos']+"_"+X_test_merged[k]['pos']]["I_B"] = 0
+        d[X_test_merged[k-1]['pos']+"_"+X_test_merged[k]['pos']][y_test_merged[k]+"_"+y_pred_merged[k]]+=1
+    k+=1
+
+# nn_prob = {}
+# nn_prob["B_I"] = 0
+# nn_prob["I_B"] = 0
+# for k,l in d.items():
+#     if k[0:2]=="NN":
+#         print(k, l)
+#         nn_prob["B_I"] += l["B_I"]
+#         nn_prob["I_B"] += l["I_B"]
+# print(nn_prob)
+
+to_prob = {}
+to_prob["B_I"] = 0
+to_prob["I_B"] = 0
+for k,l in d.items():
+    if k[0:2]=="TO":
+        print(k, l)
+        to_prob["B_I"] += l["B_I"]
+        to_prob["I_B"] += l["I_B"]
+print(to_prob)
+
+# print(d)
 # ax= plt.subplot()
 # ax.set_title('Confusion Matrix')
 # ax.xaxis.set_ticklabels(['B', 'I'])
