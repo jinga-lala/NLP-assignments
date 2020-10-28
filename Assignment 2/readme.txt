@@ -44,7 +44,7 @@ pip3 install matplotlib
 pip3 install sklearn
 pip3 install tqdm
 pip3 install torch
+pip3 install pandas
 
 Execution instruction
-python3 bilstm.py --cross_validation 0  #trains for one split
-python3 bilstm.py --cross_validation 1  #trains for 5-fold cross validation
+python3 bilstm.py
