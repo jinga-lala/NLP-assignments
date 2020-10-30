@@ -3,12 +3,17 @@ from anytree import Node, RenderTree
 
 
 
-def get_token(tree_list,ind):
-	i = 0
-	for token in tree_list:
-		if ind == i:
-			return token
-		i+=1
+def punct_subtree(tree):
+
+	PUNCT = Node(tree.text+" "+tree.tag_)
+	
+	return PUNCT
+
+
+def appos_subtree(tree):
+
+	return NP_subtree(tree)
+
 
 
 def advmod_subtree(tree):
@@ -79,13 +84,12 @@ def acomp_subtree(tree):
 				CC_value = Node(token.text+" "+token.tag_,parent=ADJP)
 
 			if token.dep_ == 'conj':
-				print("here")
+
 				Conj_value = acomp_subtree(token)
 				if len(Conj_value.children) > 1:
 					Conj_value.parent = ADJP
 				else:
 					Conj_value.children[0].parent = ADJP
-				print(Conj_value)
 
 
 	return ADJP
@@ -101,6 +105,9 @@ def NP_subtree(tree):
 		for token in tree.lefts:
 
 			if token.dep_ == 'det':
+				det_Value = Node(token.text+" "+token.tag_,parent=NP)
+
+			if token.dep_ == 'poss':
 				det_Value = Node(token.text+" "+token.tag_,parent=NP)
 
 			if token.dep_ == 'amod':
@@ -127,10 +134,30 @@ def NP_subtree(tree):
 
 			if token.dep_ == 'conj':
 				Conj_value = NP_subtree(token)
-				if len(Conj_value.children) > 1:
-					Conj_value.parent = NP
-				else:
+
+				if len(Conj_value.children) <= 1:
 					Conj_value.children[0].parent = NP
+				####Check if subtrees joined by CONJ
+				else:
+					Conj_joined = 0
+					for child in Conj_value.children:
+						if child.name.split()[1] == 'CC':
+							Conj_joined = 1
+
+					if Conj_joined == 1:
+						while len(Conj_value.children) > 0:
+							Conj_value.children[0].parent = NP
+
+					else:
+						Conj_value.parent = NP
+
+			if token.dep_ == 'punct':
+				Punct_value = punct_subtree(token)
+				Punct_value.parent = NP
+
+			if token.dep_ == 'appos':
+				Appos_value = appos_subtree(token)
+				Appos_value.parent = NP
 
 	return NP
 
@@ -163,6 +190,7 @@ def modify_VP_tree(tree):
 				tree.children[index_vp+1].parent = tree.children[index_vp]
 			
 			if index_vp-1>=0 and tree.children[index_vp-1].name == 'ADVP':
+				modification = 1
 				Dummy_Node = Node("Dummy")
 				while len(tree.children[index_vp].children) > 0:
 					tree.children[index_vp].children[0].parent = Dummy_Node
@@ -175,6 +203,26 @@ def modify_VP_tree(tree):
 
 
 			if index_vp+1<len(tree.children) and tree.children[index_vp+1].name == 'NP':
+				modification = 1
+				tree.children[index_vp+1].parent = tree.children[index_vp]
+
+
+			if index_vp-1>=0 and tree.children[index_vp-1].name == 'AUX':
+				modification = 1
+				Dummy_Node = Node("VP")
+				while len(tree.children[index_vp].children) > 0:
+					tree.children[index_vp].children[0].parent = Dummy_Node
+
+				tree.children[index_vp-1].parent = tree.children[index_vp]
+				Dummy_Node.parent = tree.children[index_vp-1]
+
+				index_vp-=1
+
+			if index_vp+1<len(tree.children) and tree.children[index_vp+1].name == 'ADVP':
+				modification = 1
+				tree.children[index_vp+1].parent = tree.children[index_vp]
+
+			if index_vp+1<len(tree.children) and tree.children[index_vp+1].name == 'ADVP':
 				modification = 1
 				tree.children[index_vp+1].parent = tree.children[index_vp]
 
@@ -191,7 +239,6 @@ def modify_VP_tree(tree):
 
 def Dep_to_Con(tree):
 
-	print(tree)
 
 	S = Node("S")
 	VP = Node("VP")
@@ -211,7 +258,7 @@ def Dep_to_Con(tree):
 				NP = NP_subtree(token)
 				NP.parent = S
 
-			if token.dep_ == 'aux' and index != 0:
+			if (token.dep_ == 'aux' or token.dep_ == 'auxpass') and index != 0:
 				AUX = Node('AUX',parent=VP)
 				Aux_VP = Node(token.text+" "+token.tag_,parent=AUX)
 
@@ -241,20 +288,30 @@ def Dep_to_Con(tree):
 				NP_OBJ = NP_subtree(token)
 				NP_OBJ.parent = VP
 
+			if token.dep_ == 'dative' or token.dep_ == 'iobj':
+				NP_OBJ = NP_subtree(token)
+				NP_OBJ.parent = VP
+
 			if token.dep_ == 'npadvmod':
 				NP_OBJ = NP_subtree(token)
 				NP_OBJ.parent = VP
 
 			if token.dep_ == 'prep':
 				PP = prep_subtree(token)
-				print(PP)
-				while len(PP.children) > 0:
-					PP.children[0].parent = VP
+				PP.parent = VP
+
+			if token.dep_ == 'punct':
+				Punct_value = punct_subtree(token)
+				Punct_value.parent = VP
 
 
 
 	VP = modify_VP_tree(VP)
-	VP.parent = S
+
+	if VP.children[len(VP.children)-1].name == ". .":
+		VP.parent = S
+		VP.children[len(VP.children)-1].parent = S
+	
 
 	return S
 
@@ -263,7 +320,7 @@ def Dep_to_Con(tree):
 if __name__ == '__main__':
 
 	nlp = spacy.load("en_core_web_sm")
-	sentence = ("Very beautiful and smart girls were present there.")
+	sentence = ("Ram, Shyam and Mohan are friends.")
 
 	print("\n\n\nPrinting Dependency Tree---------------------")
 
