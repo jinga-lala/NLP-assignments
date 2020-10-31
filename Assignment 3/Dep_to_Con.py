@@ -206,6 +206,18 @@ def modify_VP_tree(tree):
 				modification = 1
 				tree.children[index_vp+1].parent = tree.children[index_vp]
 
+			if index_vp+2<len(tree.children) and tree.children[index_vp+1].name == 'CC':
+				modification = 1
+				print(tree.children[index_vp+1].children)
+				tree.children[index_vp+1].children[0].parent = tree.children[index_vp]
+
+				if len(tree.children[index_vp+2].children) > 1:
+					while(tree.children[index_vp+2].children) > 0:
+						tree.children[index_vp+2].children[0].parent = tree.children[index_vp]
+				else:
+					tree.children[index_vp+2].children[0].parent = tree.children[index_vp]
+				tree.children[index_vp+2].parent = None
+				tree.children[index_vp+1].parent = None
 
 			if index_vp-1>=0 and tree.children[index_vp-1].name == 'AUX':
 				modification = 1
@@ -238,7 +250,6 @@ def modify_VP_tree(tree):
 
 
 def Dep_to_Con(tree):
-
 
 	S = Node("S")
 	VP = Node("VP")
@@ -304,14 +315,29 @@ def Dep_to_Con(tree):
 				Punct_value = punct_subtree(token)
 				Punct_value.parent = VP
 
+			if token.dep_ == 'cc':
+				CC = Node("CC",parent=VP)
+				CC_value = Node(token.text+" "+token.tag_,parent=CC)
+
+			if token.dep_ == 'conj':
+				Conj_value = Dep_to_Con(token)
+				Conj_value.children[0].parent = VP
 
 
 	VP = modify_VP_tree(VP)
 
 	if VP.children[len(VP.children)-1].name == ". .":
-		VP.parent = S
+
+		if VP.children[0].name == 'VP':
+			VP.children[0].parent = S
+
+		else: 
+			VP.parent = S
+
 		VP.children[len(VP.children)-1].parent = S
-	
+
+	else:
+		VP.parent = S
 
 	return S
 
@@ -320,7 +346,7 @@ def Dep_to_Con(tree):
 if __name__ == '__main__':
 
 	nlp = spacy.load("en_core_web_sm")
-	sentence = ("Ram, Shyam and Mohan are friends.")
+	sentence = ("He was playing and fighting.")
 
 	print("\n\n\nPrinting Dependency Tree---------------------")
 
