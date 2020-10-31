@@ -122,7 +122,8 @@ def NP_subtree(tree):
 
 
 
-	
+	if tree.text == 'who' or tree.text == 'where' or tree.text == 'what':
+		NP.name = "WHNP"
 	Head_NP = Node(tree.text+" "+tree.tag_,parent=NP)
 	
 	if tree.n_rights > 0:
@@ -158,6 +159,11 @@ def NP_subtree(tree):
 			if token.dep_ == 'appos':
 				Appos_value = appos_subtree(token)
 				Appos_value.parent = NP
+
+			if token.dep_ == 'relcl':
+				S_bar = Dep_to_Con(token)
+				S_bar.parent = NP
+				S_bar.name = "SBAR"
 
 	return NP
 
@@ -328,7 +334,7 @@ def Dep_to_Con(tree):
 
 	if VP.children[len(VP.children)-1].name == ". .":
 
-		if VP.children[0].name == 'VP':
+		if VP.children[0].name == 'VP' and len(VP.children) == 1:
 			VP.children[0].parent = S
 
 		else: 
@@ -346,7 +352,7 @@ def Dep_to_Con(tree):
 if __name__ == '__main__':
 
 	nlp = spacy.load("en_core_web_sm")
-	sentence = ("He was playing and fighting.")
+	sentence = ("Senior students who had finished their exams played energetically street football with crowd watching.")
 
 	print("\n\n\nPrinting Dependency Tree---------------------")
 
