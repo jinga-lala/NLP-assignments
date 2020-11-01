@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import os
 import torch
 import torch.nn as nn
+from sklearn.metrics import accuracy_score
 
 def import_Train_Data():
 	ftrain = open("../CRF/assignment2dataset/train.txt")
@@ -90,7 +91,7 @@ def Get_Tagset(Sentences):
 
 	return set(TagSet)
 
-!unzip CRF.zip
+# !unzip CRF.zip
 
 def build_labelled_features(Sentences):
 
@@ -159,8 +160,8 @@ def build_labelled_features(Sentences):
 
 	return labelled_features
 
-Train_Sentences = import_Test_Data()
-Test_Sentences = import_Train_Data()
+Train_Sentences = import_Train_Data()
+Test_Sentences = import_Test_Data()
 
 Train_Sentences = Remove_Extra_Tag(Train_Sentences)
 Test_Sentences = Remove_Extra_Tag(Test_Sentences)
@@ -186,9 +187,9 @@ for i in range(len(Train_Sentences)):
 indexwords['oov'] = len(indexwords)
 indexpos['oov'] = len(indexpos)
 
-indexwords['oov']
+# indexwords['oov']
 
-indexpos
+# indexpos
 
 class MyData(torch.utils.data.Dataset):
     def __init__(self, indexwords, indexpos, indextags, dataset_list):
@@ -261,7 +262,7 @@ model = BiLSTMNet(1024, len(indexwords), len(indexpos))
 model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-epochs = 15
+epochs = 9
 
 from sklearn.metrics import accuracy_score
 
@@ -327,9 +328,7 @@ for (x,t,y) in test_set:
     count+=len(x)
 
 print(f"Test loss : {total_loss/count}")
-print(f"Test accuracy : {test_acc/count*100}%")
-
-print(accuracy_score(gold,preds))
+print(f"Test accuracy : {(accuracy_score(gold,preds)*100}%")
 
 from sklearn.metrics import classification_report, confusion_matrix
 print(classification_report(gold,preds))
@@ -338,6 +337,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt  
 
 cm = confusion_matrix(gold, preds, list(indextags.values()))
+print("Confusion Matrix")
 print(cm)
 
 sns.set(rc={'figure.figsize':(11.7,8.27)})
