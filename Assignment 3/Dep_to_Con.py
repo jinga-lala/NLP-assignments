@@ -182,6 +182,11 @@ def prep_subtree(tree):
 				S_bar = Dep_to_Con(token)
 				S_bar.parent = PP
 
+			if token.dep_ == 'pobj':
+
+				NP = NP_subtree(token)
+				NP.parent = PP
+
 	return PP
 
 def modify_VP_tree(tree):
@@ -283,6 +288,9 @@ def Dep_to_Con(tree):
 				ADVP = Node("ADVP",parent=VP)
 				ADVP_value = Node(token.text+" "+token.tag_,parent=ADVP)
 
+			if token.dep_ == 'mark':
+				mark_value = Node(token.text+" "+token.tag_,parent=S)
+
 			index+=1
 
 
@@ -329,6 +337,25 @@ def Dep_to_Con(tree):
 				Conj_value = Dep_to_Con(token)
 				Conj_value.children[0].parent = VP
 
+			if token.dep_ == 'advcl':
+				SBAR_value = Dep_to_Con(token)
+				SBAR_value.name = 'SBAR'
+				SBAR_value.parent = VP
+				SBAR_value.children[0].name = 'WHAVP'
+
+			if token.dep_ == 'agent':
+				PP = prep_subtree(token)
+				PP.parent = VP
+
+			if token.dep_ == 'ccomp':
+				CCOMP = Dep_to_Con(token)
+				CCOMP.parent = VP
+				CCOMP.name = 'SBAR'
+
+			if token.dep_ == 'mark':
+				mark_value = Node(token.text+" "+token.tag_,parent=S)
+
+
 
 	VP = modify_VP_tree(VP)
 
@@ -352,9 +379,11 @@ def Dep_to_Con(tree):
 if __name__ == '__main__':
 
 	nlp = spacy.load("en_core_web_sm")
-	sentence = ("Senior students who had finished their exams played energetically street football with crowd watching.")
+	val = input("\nEnter your sentence here: ")
+	sentence = str(val)
 
-	print("\n\n\nPrinting Dependency Tree---------------------")
+	print("\n\nPrinting Dependency parse tree:")
+
 
 	doc = nlp(sentence)
 	for token in doc:
@@ -364,6 +393,7 @@ if __name__ == '__main__':
 
 	S = Dep_to_Con(doc.root)
 
+	print("\n\nPrinting Constituency parse tree:")
 	for pre, _, node in RenderTree(S):
 		print("%s%s" % (pre, node.name))
 

@@ -3,6 +3,7 @@ from nltk.parse.corenlp import CoreNLPParser
 from nltk.tag.mapping import tagset_mapping
 from anytree import Node, RenderTree
 import nltk
+from nltk.tree import Tree
 
 PTB_UNIVERSAL_MAP = tagset_mapping('en-ptb', 'universal')
 parser = CoreNLPParser(url='http://localhost:9000')
@@ -84,6 +85,11 @@ def PP_subtree(tree):
 	S_Bar.name = "PCOMP"
 	S_Bar.parent = Head_Node
 
+	if S_Bar.children[0].name == 'Not filled':
+		S_Bar.children[0].parent = None
+		S_Bar.children[0].parent = Head_Node
+		S_Bar.parent = None
+
 	return Head_Node
 
 def ADVP_subtree(tree):
@@ -112,11 +118,14 @@ def NP_subtree(tree):
 			pass
 
 		elif subtree.label() == 'SBAR':
-			RELCL_value = Con_to_Dep(subtree[1]).children[0]
+
+			NSUBJ_value = NP_subtree(subtree[0])[1]
+			New_Tree = Tree('S',subtree[1])
+			RELCL_value = Con_to_Dep(Tree('ROOT',[New_Tree])).children[0]
 			RELCL = Node("RELCL")
 			VERB_temp = Node("",parent=RELCL)
 			VERB_temp.name = RELCL_value.name 
-			NSUBJ_value = NP_subtree(subtree[0])[1]
+			
 			NSUBJ = Node("NSUBJ",parent=VERB_temp)
 			NSUBJ_value.parent = NSUBJ
 			for child in RELCL_value.children:
@@ -166,7 +175,7 @@ def VP_subtree(tree):
 	for subtree in tree:
 		if subtree.label() == 'VP':
 			Sub_VP_exists = 1
-			VP_subtree(subtree)
+			return VP_subtree(subtree)
 
 	if Sub_VP_exists == 0:
 
@@ -188,6 +197,11 @@ def VP_subtree(tree):
 				PREP_value = PP_subtree(tree[subtree])
 				PREP_value.parent = PREP
 
+			elif tree[subtree].label()[-3:] == 'TMP':
+				NPADVMOD = Node("NPADVMOD",parent=VERB.children[0])
+				NPADVMOD_value = NP_subtree(tree[subtree])[1]
+				NPADVMOD_value.parent = NPADVMOD
+
 			elif tree[subtree].label()[:2] == 'NP':
 				DOBJ = Node("DOBJ",parent=VERB.children[0])
 				DOBJ_value = NP_subtree(tree[subtree])[1]
@@ -197,6 +211,29 @@ def VP_subtree(tree):
 				ADVMOD = Node("ADVMOD",parent=VERB.children[0])
 				ADVMOD_value = ADVP_subtree(tree[subtree])
 				ADVMOD_value.parent = ADVMOD
+
+			elif tree[subtree].label() == 'SBAR':
+				New_Tree = Tree('S',tree[subtree][1])
+				CCOMP_value = Con_to_Dep(Tree('ROOT',[New_Tree])).children[0]
+				CCOMP = Node("CCOMP")
+				VERB_temp = Node("",parent=CCOMP)
+				VERB_temp.name = CCOMP_value.name 
+
+				if tree[subtree][0].label()[:2] == 'WH':
+					NSUBJ_value = NP_subtree(tree[subtree][0])[1]
+					NSUBJ = Node("NSUBJ",parent=VERB_temp)
+					NSUBJ_value.parent = NSUBJ
+					CCOMP.name = 'ADVCL'
+
+				else:
+					MARK_value = Node(tree[subtree][0].label()+" "+tree[subtree][0][0])
+					MARK = Node("MARK",parent=VERB_temp)
+					MARK_value.parent = MARK
+
+				for child in CCOMP_value.children:
+					child.parent = VERB_temp
+
+				CCOMP.parent = VERB.children[0]
 
 
 	else:
@@ -208,39 +245,48 @@ def VP_subtree(tree):
 
 def Con_to_Dep(tree):
 
-	print(tree)
 	ROOT = Node("ROOT")
 	VERB = Node("Not filled",parent=ROOT)
+
 	
 	for subtree in tree[0]:
-
+		
 		if subtree.label() == 'VP':
+
 			VERB_temp = VP_subtree(subtree)
 			VERB.name = VERB_temp.children[0].name
 			while len(VERB_temp.children[0].children) > 0:
 				VERB_temp.children[0].children[0].parent = VERB
 
 
-		if subtree.label()[:2] == 'NP' or subtree.label() == 'WHNP':
+		elif subtree.label()[:2] == 'NP' or subtree.label() == 'WHNP':
 			NSUBJ = Node("NSUBJ",parent=VERB)
 			NSUBJ_value = NP_subtree(subtree)[1]
 			NSUBJ_value.parent = NSUBJ
 
-		if subtree.label() == '.':
+		elif subtree.label() == '.':
 			PUNCT = Node("PUNCT",parent=VERB)
 			PUNCT_value = Node(subtree.label()+" "+subtree[0])
 			PUNCT_value.parent = PUNCT
+
+		elif subtree.label() == 'NNP':
+			AGENT = Node("AGENT",parent=ROOT)
+			AGENT_value = Node(subtree.label()+" "+subtree[0])
+			AGENT_value.parent = AGENT
 
 	return ROOT
 
 
 if __name__ == '__main__':
 
-	sentence = "Senior students who had finished their exams played energetically street football with crowd watching."
+	val = input("\nEnter your sentence here: ")
+	print("\n\nPrinting Constituency parse tree:")
+	sentence = str(val)
 
 	doc = cp(sentence)
 	print(doc)
 	ROOT = Con_to_Dep(doc[0])
 
+	print("\n\nPrinting Dependency parse tree:")
 	for pre, _, node in RenderTree(ROOT):
 		print("%s%s" % (pre, node.name))
