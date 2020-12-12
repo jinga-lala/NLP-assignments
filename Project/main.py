@@ -17,9 +17,9 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Argument Parsers for CS626 Course Project")
 parser.add_argument("--model", action="store", dest="model", default="bert", type=str, required=False, help="Pre-trained transformer model that needs to be used")
-parser.add_argument("--train_data", action="store", type=int, default=None, help="Path to train data")
-parser.add_argument("--test_data", action="store", type=int, default=None, help="Path to test data")
-parser.add_argument("--test_label_data", action="store", type=int, default=None, help="Path to test label data")
+parser.add_argument("--train_data", action="store", type=str, default=None, help="Path to train data")
+parser.add_argument("--test_data", action="store", type=str, default=None, help="Path to test data")
+parser.add_argument("--test_label_data", action="store", type=str, default=None, help="Path to test label data")
 parser.add_argument("--epochs", action="store", dest="epochs", type=int, default=2, help="Number of  training epochs")
 parser.add_argument("--batch_size", action="store", dest="batch_size", type=int, default=128, help="Batch size")
 parser.add_argument("--max_seq_len", action="store", dest="max_seq_len", type=int, default=128, help="Maximum length of an input sentence")
@@ -33,14 +33,6 @@ if args.train_data is None:
 else:
     train_path = args.train_data
 train = pd.read_csv(train_path)
-
-# **Analyse the dataset**
-
-
-print(train.head())
-
-print(train.describe())
-print(train.isnull().any())
 
 # **Define the output classes**
 
@@ -157,7 +149,7 @@ print(summary(model))
 # **Training the Model**
 
 model.train()
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 for epoch in tqdm(range(EPOCHS)):
   count = 0
   total_loss =0 
@@ -201,7 +193,7 @@ for epoch in tqdm(range(EPOCHS)):
 
 sample_text = "Please get out of here"
 clean_txt = clean_string(sample_text)
-out1 = tokenizer.encode_plus(list(clean_txt), pad_to_max_length=True, max_length=MAX_SEQ_LEN, return_tensors='pt')
+out1 = tokenizer([clean_txt], pad_to_max_length=True, max_length=MAX_SEQ_LEN, return_tensors='pt')
 input_ids = out1['input_ids'].to(device)
 attention_mask = out1['attention_mask'].to(device)
 model.eval()
@@ -220,7 +212,7 @@ test = pd.read_csv(test)
 if args.test_label_data is None:
     test_labels_path = '../input/jigsaw-toxic-comment-classification-challenge/test_labels.csv.zip'
 else:
-    test_label_path = args.test_label_data
+    test_labels_path = args.test_label_data
     
 test_labels = pd.read_csv(test_labels_path)
 test_labels = test_labels.replace(to_replace=-1,value=0)
@@ -229,7 +221,6 @@ test_set = test.merge(test_labels, left_index=True, right_index=True)
 test_set = test_set[["id_x", "comment_text", "toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]]
 test_set = test_set.reset_index(drop=True)
 test_set = test_set.rename(columns={"id_x": "id"})
-print(test_set.head())
 
 # **Perform test data cleaning and load into Dataloader**
 
